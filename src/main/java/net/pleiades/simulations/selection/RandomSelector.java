@@ -15,7 +15,7 @@ import net.pleiades.database.SimulationsMapStore;
  *
  * @author bennie
  */
-public class EqualProbabilitySelector implements SimulationSelector {
+public class RandomSelector implements SimulationSelector {
 
     @Override
     public String getKey(SimulationsMapStore simulationsDB) {

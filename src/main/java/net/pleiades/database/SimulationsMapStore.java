@@ -19,11 +19,8 @@ import com.mongodb.Mongo;
 import com.mongodb.WriteConcern;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -37,7 +34,7 @@ import net.pleiades.simulations.Simulation;
  *
  * @author bennie
  */
-public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
+public class SimulationsMapStore implements MapStore<String, Simulation> {
     private static final String configFile = "pleiades.conf"; //fix this if you can
     private DBCollection jobs;
 
@@ -75,11 +72,11 @@ public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
     }
 
     @Override
-    public void store(String k, List<Simulation> v) {
-        DBObject o = new PersistentSimulationsList(k, v);
+    public void store(String k, Simulation v) {
+        DBObject o = new PersistentSimulationsMapObject(v);
         BasicDBObject query = new BasicDBObject();
 
-        query.put("owner", o.get("owner"));
+        query.put("id", o.get("id"));
         
         if (jobs.find(query).toArray().isEmpty()) {
             jobs.insert(o);
@@ -89,7 +86,7 @@ public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
     }
 
     @Override
-    public void storeAll(Map<String, List<Simulation>> map) {
+    public void storeAll(Map<String, Simulation> map) {
         for (String k : map.keySet()) {
             store(k, map.get(k));
         }
@@ -98,7 +95,7 @@ public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
     @Override
     public void delete(String k) {
         BasicDBObject query = new BasicDBObject();
-        query.put("owner", k);
+        query.put("id", k);
         
         jobs.remove(query);
     }
@@ -111,9 +108,9 @@ public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
     }
 
     @Override
-    public List<Simulation> load(String k) {
+    public Simulation load(String k) {
         BasicDBObject query = new BasicDBObject();
-        query.put("owner", k);
+        query.put("id", k);
 
         DBObject load = jobs.findOne(query);
 
@@ -121,31 +118,32 @@ public class SimulationsMapStore implements MapStore<String, List<Simulation>> {
             return null;
         }
         
-        PersistentSimulationsList array = (PersistentSimulationsList) load;
-        return array.simulations();
+        Simulation s = new CilibSimulation((PersistentSimulationsMapObject) load);
+        
+        return s;
     }
 
     @Override
-    public Map<String, List<Simulation>> loadAll(Collection<String> clctn) {
-        Map<String, List<Simulation>> map = new ConcurrentHashMap<String, List<Simulation>>();
+    public Map<String, Simulation> loadAll(Collection<String> clctn) {
+        Map<String, Simulation> sims = new ConcurrentHashMap<String, Simulation>();
 
         for (String k : clctn) {
-            map.put(k, load(k));
+            sims.put(k, load(k));
         }
 
-        return map;
+        return sims;
     }
 
     @Override
     public Set<String> loadAllKeys() {
-        Set<String> keys = new ConcurrentHashSet<String>();
+        Set<String> keys = new LinkedHashSet<String>();
         BasicDBObject query = new BasicDBObject();
-        BasicDBObject dbKeys = new BasicDBObject("owner", "1");
+        BasicDBObject sort = new BasicDBObject("id", "1");
         
-        DBCursor cursor = jobs.find(query, dbKeys);
+        DBCursor cursor = jobs.find(query).sort(sort);
         
         while (cursor.hasNext()) {
-            keys.add((String) cursor.next().get("owner"));
+            keys.add((String) cursor.next().get("id"));
         }
         
         return keys;

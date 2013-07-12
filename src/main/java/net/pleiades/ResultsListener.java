@@ -105,6 +105,7 @@ public class ResultsListener implements EntryListener, MessageListener<Task> {
 
             if (cSimulation == null) {
                 Config.RESULTS_TOPIC.publish(t); //republish this completed task
+                System.out.println("ERROR: No such simulation!!");
                 throw new Exception("No such simulation");
             }
             cSimulation.completeTask(t, properties);
@@ -141,8 +142,8 @@ public class ResultsListener implements EntryListener, MessageListener<Task> {
             
             txn.commit();
         } catch (Throwable e) {
-            System.out.println("ERROR:");
-            e.printStackTrace();
+            //System.out.println("ERROR:");
+            //e.printStackTrace();
             txn.rollback();
         } finally {
             cLock.unlock();

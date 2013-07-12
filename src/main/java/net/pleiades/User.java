@@ -64,7 +64,7 @@ public class User {
 
         System.out.println(">Your job contains " + simulations.size() + " simulations.");
 
-        IMap<String, List<Simulation>> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
+        IMap<String, Simulation> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
         IMap<String, byte[]> fileQueue = Hazelcast.getMap(Config.fileMap);
         IMap<String, Simulation> completedMap = Hazelcast.getMap(Config.completedMap);
 
@@ -76,20 +76,17 @@ public class User {
 
             System.out.println(">Uploading tasks to cluster...");
             fileQueue.put(fileKey, runBytes);
-            List<Simulation> jobsList = simulationsMap.get(user);
-            if (jobsList == null) {
-                jobsList = new LinkedList<Simulation>();
-            }
-            jobsList = new LinkedList<Simulation>(jobsList);
-
+            
             for (Simulation s : simulations) {
                 tasks += s.getSamples();
-                jobsList.add(s);
+                
+                simulationsMap.put(s.getID(), s);
                 completedMap.put(s.getID(), s.emptyClone());
+                
+                simulationsMap.forceUnlock(s.getID());
                 completedMap.forceUnlock(s.getID());
             }
-
-            simulationsMap.put(user, jobsList);
+            
             txn.commit();
 
             System.out.println("100% >");

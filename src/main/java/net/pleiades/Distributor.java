@@ -1,10 +1,10 @@
 /**
- * Pleiades
- * Copyright (C) 2011 - 2012
- * Computational Intelligence Research Group (CIRG@UP)
- * Department of Computer Science
- * University of Pretoria
- * South Africa
+ *Pleiades
+ *Copyright (C) 2011 - 2012
+ *Computational Intelligence Research Group (CIRG@UP)
+ *Department of Computer Science
+ *University of Pretoria
+ *South Africa
  */
 package net.pleiades;
 
@@ -23,13 +23,14 @@ import java.util.concurrent.locks.Lock;
 import net.pleiades.database.RunningMapStore;
 import net.pleiades.database.SimulationsMapStore;
 import net.pleiades.simulations.Simulation;
-import net.pleiades.simulations.selection.EqualProbabilitySelector;
+import net.pleiades.simulations.selection.RandomSelector;
 import net.pleiades.simulations.selection.SimulationSelector;
+import net.pleiades.simulations.selection.UniformUserSelector;
 import net.pleiades.tasks.Task;
 
 /**
  *
- * @author bennie
+ *@author bennie
  */
 public class Distributor implements MessageListener<String>, Runnable {
     private final int CHECK_INTERVAL = 12;
@@ -44,7 +45,7 @@ public class Distributor implements MessageListener<String>, Runnable {
         this.properties = Config.getConfiguration();
         simulationsMapStore = new SimulationsMapStore();
         runningMapStore = new RunningMapStore();
-        this.simulationSelector = new EqualProbabilitySelector();
+        this.simulationSelector = new UniformUserSelector();
     }
 
     public void activate() {
@@ -58,75 +59,64 @@ public class Distributor implements MessageListener<String>, Runnable {
 
     @Override
     public synchronized void onMessage(Message<String> message) {
-        //System.out.println("Request from: " + message.getMessageObject());
+        System.out.println("Request from: " + message.getMessageObject());
         boolean distributing = false;
-        
+        System.out.print("1");
         String workerID = message.getMessageObject();
-        
+        System.out.print("2");
         if (runningMapStore.loadAll(runningMapStore.loadAllKeys()).containsValue(workerID)) {
             return;
         }
-        
+        System.out.print("3");
         Lock jLock = Hazelcast.getLock(Config.simulationsMap);
         Lock rLock = Hazelcast.getLock(Config.runningMap);
-
+        System.out.print("4");
         jLock.lock();
-        IMap<String, List<Simulation>> jobsMap = Hazelcast.getMap(Config.simulationsMap);
-
+        IMap<String, Simulation> jobsMap = Hazelcast.getMap(Config.simulationsMap);
+        System.out.print("5");
         Transaction txn = Hazelcast.getTransaction();
         txn.begin();
-
+System.out.print("6");
         beat();
         Task task = null;
-
+System.out.print("7");
         try {
             String key = simulationSelector.getKey(simulationsMapStore);
-        
+        System.out.print("8");
             if (key.equals("")) {
                 throw new Exception("No key found");
             }
-            List<Simulation> collection = jobsMap.get(key);
-            if (collection == null || collection.isEmpty()) {
+            Simulation sim = jobsMap.get(key);
+            System.out.print("9");
+            task = sim.getUnfinishedTask();
+            System.out.print(" 10");
+            if (task != null) {
+                jobsMap.replace(key, sim);
+                jobsMap.forceUnlock(key);
+            }
+            else {
                 jobsMap.remove(key);
                 jobsMap.forceUnlock(key);
                 txn.commit();
                 return;
             }
-            Iterator<Simulation> iter = collection.iterator();
-            
-            while (iter.hasNext()) {
-                Simulation s = iter.next();
-                task = s.getUnfinishedTask();
-                if (task != null) {
-                    break;
-                }
-                else {
-                    iter.remove();
-                }
-            }
-            
-            jobsMap.put(key, collection);
-            jobsMap.forceUnlock(key);
-            
-            if (task == null) {
-                txn.commit();
-                return;
-            }
-            
+            System.out.print(" 11");
             distributing = true;
-            
+            System.out.print(" 12");
             Map<String, Task> toPublish = new HashMap<String, Task>();
             toPublish.put(workerID, task);
             Config.TASKS_TOPIC.publish(toPublish);
-
+System.out.print(" 13");
             rLock.lock();
             IMap<String, String> runningMap = Hazelcast.getMap(Config.runningMap);
-        
+        System.out.print(" 14");
             runningMap.put(task.getId(), workerID);
             txn.commit();
         } catch (Throwable e) {
+            System.out.print("~!");
             txn.rollback();
         } finally {
+            System.out.print("~!!");
             if (distributing) {
                 rLock.unlock();
             }

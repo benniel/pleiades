@@ -69,12 +69,12 @@ public class ErrorListener implements MessageListener<Task> {
         cLock.lock();
         jLock.lock();
 
-        IMap<String, List<Simulation>> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
+        IMap<String, Simulation> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
         IMap<String, Simulation> completedMap = Hazelcast.getMap(Config.completedMap);
 
         txn.begin();
 
-        String simulationsKey = t.getParent().getOwner();
+        String simulationKey = t.getParent().getID();
 
         try {
             String id;
@@ -82,7 +82,7 @@ public class ErrorListener implements MessageListener<Task> {
                 id = t.getParent().getJobID();
                 System.out.println("*** " + id);
             } else {
-                id = t.getParent().getID();
+                id = simulationKey;
             }
 
             //remember erroneous simulations
@@ -95,11 +95,12 @@ public class ErrorListener implements MessageListener<Task> {
             errors.add(id);
 
             //remove simulation from jobs- and results queues
-            List<Simulation> jobs = simulationsMap.get(simulationsKey);
+            //Simulation job = simulationsMap.get(simulationKey);
 //            int simNum = t.getParent().getSimulationNumber();
 
-            Iterator<Simulation> iter = jobs.iterator();
+            Iterator<Simulation> iter = simulationsMap.values().iterator();
 //            System.out.println("JOBS: " + jobs.size());
+            
             Simulation current;
             while (iter.hasNext()) {
                 current = iter.next();
@@ -123,7 +124,7 @@ public class ErrorListener implements MessageListener<Task> {
         } catch (Throwable e) {
             txn.rollback();
         } finally {
-            simulationsMap.forceUnlock(simulationsKey);
+            simulationsMap.forceUnlock(simulationKey);
             jLock.unlock();
             cLock.unlock();
         }

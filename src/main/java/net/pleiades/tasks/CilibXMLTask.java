@@ -22,6 +22,7 @@ import java.io.Reader;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -198,10 +199,8 @@ public class CilibXMLTask extends BasicDBObject implements Task, Serializable {
     private Simulation findParent() {
         String parentID = id.substring(0, id.lastIndexOf("_"));
         
-        IMap<String, Simulation> completedMap = Hazelcast.getMap(Config.completedMap);
-        IMap<String, List<Simulation>> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
-        
-        List<Simulation> sims = simulationsMap.get(completedMap.getMapEntry(parentID).getValue().getOwner());
+        IMap<String, Simulation> simulationsMap = Hazelcast.getMap(Config.simulationsMap);
+        Collection<Simulation> sims = simulationsMap.values();
                 
         Simulation p = null;
         for (Simulation s : sims) {
