@@ -28,7 +28,7 @@ def generate_script(pars, iteration, simulation_settings, user_settings, locatio
     NOTE: Change this as needed
     '''
 
-    script_filename = os.path.join(location_settings.base_location, user_settings.user, user_settings.job + '.xml')
+    script_filename = os.path.join(location_settings.base_location, user_settings.user, user_settings.user + '_' + user_settings.job + '.xml')
     script = open(script_filename, 'w')
 
     problem = simulation_settings.problems.pop(0)
@@ -51,7 +51,7 @@ def generate_script(pars, iteration, simulation_settings, user_settings, locatio
         algorithms += algorithm.replace(id_name(simulation_settings.algorithm), 'alg_' + p, 1) + '\n'
 
         sims += simulation.replace('$1', 'alg_' + p).replace('$2', id_name(problem)) \
-            .replace('$3', parameter_filename(user_settings.user, user_settings.job, iteration, p, location_settings.results_location)) \
+            .replace('$3', parameter_filename(user_settings.user, user_settings.job, iteration, p, location_settings.base_location)) \
             .replace('$4', str(simulation_settings.samples))
 
     script.write(header_section + '\n')
@@ -71,4 +71,4 @@ def run_script(script, jar_path, jar_type):
     Function to run a given script
     '''
 
-    subprocess.call(['java', '-jar', './Pleiades', '-u', 'frace', '-i', script, '-j', jar_path, '-t', jar_type])
+    subprocess.call(['java', '-Dhazelcast.logging.type=none', '-jar', './Pleiades', '-u', 'frace', '-i', script, '-j', jar_path, '-t', jar_type])

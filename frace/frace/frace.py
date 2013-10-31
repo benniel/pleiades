@@ -100,7 +100,7 @@ def generate_results(user_settings, location_settings):
 
     results = []
     pars = []
-    path = os.path.join(location_settings.results_location, user_settings.user, user_settings.job)
+    path = location_settings.results_location
     files = sorted(os.listdir(path), key=by_iter)
 
     groups = groupby(files, by_iter)
@@ -119,8 +119,12 @@ def iteration(pars, user_settings, simulation_settings, frace_settings, iteratio
     run_script(generate_script(pars, iteration, simulation_settings, user_settings, location_settings), jar_path, jar_type)
 
     while not all(os.path.exists(p) for p in parameter_filenames(user_settings, iteration, pars, location_settings)):
+	for p in parameter_filenames(user_settings, iteration, pars, location_settings):
+            print p
+            print os.path.exists(p)
         # wait for results
-        time.sleep(60000)
+        print "sleepy time"
+        time.sleep(5)
 
     results, pars = generate_results(user_settings, location_settings)
 
@@ -161,32 +165,32 @@ def runner(request, frace_settings):
 
     path = os.path.join(location_settings.base_location, user_settings.user, user_settings.job)
 
-    if not os.path.exists(path):
-        os.makedirs(path)
-    else:
-        shutil.rmtree(path)
+    #if not os.path.exists(path):
+    #    os.makedirs(path)
+    #else:
+    #    shutil.rmtree(path)
 
     print '** Generating parameters'
     pars = [p for p in frace_settings.generator()]
 
     print '** Preparing output file'
-    result_filename = os.path.join(location_settings.base_location, user_settings.user, 'frace_' + user_settings.job + '.txt')
+    result_filename = os.path.join(location_settings.base_location, user_settings.user, user_settings.user + '_' + user_settings.job + '.txt')
 
     results_file = open(result_filename, 'w+')
     results_file.write('0 ' + ' '.join([par_to_result(p) for p in pars]) + '\n')
 
-    i = 1
+    i = 0
     while i <= frace_settings.iterations:
 
         print '\nStarting iteration', i
 
         # regenerate parameters if needed
-        if ifrace_settings.is_iterative and i % ifrace_settings.interval == 0:
+        if ifrace_settings.is_iterative and i % ifrace_settings.interval == 0 and not i == 0:
             print 'Regenerating parameters...'
             pars = eval(ifrace_settings.regenerator)(pars)
             # delete all result files for this frace run since they're not used anymore
-            shutil.rmtree(os.path.join(location_settings.results_location, user_settings.user, user_settings.job))
-            os.makedirs(os.path.join(location_settings.results_location, user_settings.user, user_settings.job))
+            shutil.rmtree(os.path.join(location_settings.results_location))
+            os.makedirs(os.path.join(location_settings.results_location))
 
         # get list of current result files
         toRemove = copy.deepcopy(pars)
@@ -199,7 +203,7 @@ def runner(request, frace_settings):
         print '-- Deleting removed parameters'
         toRemove = [ p for p in toRemove if not p in pars ]
         for p in toRemove:
-            for j in glob.glob(os.path.join(location_settings.results_location, user_settings.user, user_settings.job, '*' + p + '*')):
+            for j in glob.glob(os.path.join(location_settings.results_location, '*' + p + '*')):
                 os.remove(j)
         print '       Removed', len(toRemove), 'parameters'
 
@@ -215,7 +219,7 @@ def runner(request, frace_settings):
         # this is so we don't waste time tuning when there is no chance of reducing the no. of parameters
         if ifrace_settings.is_iterative and len(pars) == frace_settings.min_solutions:
             print '-- Recalculating iteration'
-            i = min(frace_settings.iterations, (ifrace_settings.interval + 1) * i / ifrace_settings.interval)
+            i = (i / ifrace_settings.interval + 1) * ifrace_settings.interval
             print i
 
         print '-- Remaining parameter count: ', len(pars)
@@ -224,7 +228,7 @@ def runner(request, frace_settings):
     results_file.close()
 
     # clear results folder, TODO: not sure if this is needed for ciclops
-    shutil.rmtree(os.path.join(results_location, user_settings.user, user_settings.job))
+    shutil.rmtree(os.path.join(location_settings.results_location))
 
     print '** Done'
     return result_filename

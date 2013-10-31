@@ -5,7 +5,7 @@ from django import forms
 from pleiades import pleiades_settings
 from frace import parameters, frace, utils
 import pleiades.views as pleiades
-import os, re
+import os, re, shutil, string
 
 JAR_CHOICES = (('Custom','Custom Jar File'),
                ('Master', 'Current Master Branch (' + pleiades_settings.cilib_snapshot_version + ')')
@@ -20,24 +20,24 @@ class FraceForm(forms.Form):
     custom_jar_file = forms.FileField(required=False)
     custom_jar_file.widget.attrs['disabled'] = True
     min_solutions = forms.ChoiceField(label='Minimum solutions',
-        choices=[(5, 5), (10, 10), (15, 15)]
+        choices=[(2, 2), (5, 5), (10, 10), (15, 15)]
     )
     min_problems = forms.ChoiceField(label='Minimum problems',
-        choices=[(5, 5), (10, 10), (15, 15)]
+        choices=[(5, 5), (10, 10), (15, 15), (90, 90)]
     )
     num_configurations = forms.ChoiceField(label='Configurations per race',
-        choices=[(50, 50), (100, 100), (150, 150)]
+        choices=[(10, 10), (32, 32), (50, 50), (100, 100), (150, 150)]
     )
     iterations = forms.ChoiceField(
-        choices=[(50, 50), (100, 100), (150, 150)]
+        choices=[(30, 30), (50, 50), (100, 100), (150, 150), (900, 900)]
     )
     samples = forms.ChoiceField(label='Compare average results over n samples',
-        choices=[(50, 50), (100, 100), (150, 150)]
+        choices=[(1, 1), (10, 10), (50, 50), (100, 100), (150, 150)]
     )
     measurement = forms.CharField(label='Cilib measurement class path', max_length=200, required=True)
     iterated_frace = forms.BooleanField(label="Periodically regenerate parameter configurations (Iterated F-Race)", required=False, initial=True)
     interval = forms.ChoiceField(
-        choices=[(5, 5), (10, 10), (15, 15)]
+        choices=[(5, 5), (10, 10), (15, 15), (180, 180)]
     )
 
 class FraceBoundsForm(forms.Form):
@@ -77,14 +77,20 @@ def new_job(request):
             job_name = form.cleaned_data['job_name']
 
             upload_path = os.path.join(settings.USER_DIRS, 'frace', user + '_uploads')
-            base_path = os.path.join(settings.USER_DIRS, 'frace', user, job_name)
-            results_path = os.path.join(settings.CICLOPS_RESULTS_DIR, 'frace', user, job_name)
+            base_path = os.path.join(settings.RESULTS_DIRS, 'frace')
+            pleiades_results_path = os.path.join(base_path, user + '_' + job_name)
+            frace_results_path = os.path.join(base_path, user)
     
             if not os.path.exists(upload_path):
                 os.makedirs(upload_path)
 
-            if not os.path.exists(base_path):
-                os.makedirs(base_path)
+            if not os.path.exists(frace_results_path):
+                os.makedirs(frace_results_path)
+
+            if os.path.exists(pleiades_results_path):
+                shutil.rmtree(pleiades_results_path)
+
+            os.makedirs(pleiades_results_path)
     
             algorithm_path = os.path.join(upload_path, job_name + '_frace-alg.scala')
             problems_path = os.path.join(upload_path, job_name + '_frace-prob.scala')
@@ -117,11 +123,13 @@ def new_job(request):
             #generator = parameters.initial_sobol(parameter_bounds, configurations)
 
             request.session['user_settings'] = frace.UserSettings(user, job_name)
-            request.session['location_settings'] = frace.LocationSettings(base_path, results_path)
+            request.session['location_settings'] = frace.LocationSettings(base_path, pleiades_results_path)
             request.session['ifrace_settings'] = frace.IFraceSettings(is_iterative, interval, regen)
             request.session['simulation'] = frace.SimulationSettings(algorithm, problems, measurement, samples)
 
             request.method = ""
+
+            print "woohoo!"
 
             return upload(request)
     else:
@@ -199,7 +207,16 @@ def upload(request):
     return HttpResponse(template.render(c))
 
 def add_parameters(form, simulation):
-    parameters = re.findall(r'TuningControlParameter', simulation.algorithm)
+    all_parameters = re.findall(r'class=\"tuning.TuningControlParameter\" index=\"\d+\"', simulation.algorithm)
+    parameters = []
+    
+    for p in all_parameters:
+        all = string.maketrans('','')
+        index = all.translate(all, string.digits)
+        p_index = p.translate(all, index)
+        
+        if not p_index in parameters:
+            parameters.append(p_index)
 
     for i in range(0, len(parameters)):
             form.fields['parameter_' + str(i)] = forms.CharField(max_length=100, required=True)
