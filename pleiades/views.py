@@ -190,7 +190,7 @@ def upload(request):
                 jar_path = pleiades_settings.cilib_master_path
                 jar_type = 'master'
     
-            output = subprocess.Popen(['java', '-jar', './Pleiades', '-u', user, '-i', input_path, '-j', jar_path, '-t', jar_type], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0];
+            output = subprocess.Popen(['python', 'NewPleiades/upload.py', '-u', user, '-i', input_path, '-j', jar_path, '-t', jar_type], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0];
             output = output.replace(">", "<br/>")
     
             clean_upload_dir(upload_path)

@@ -1,6 +1,6 @@
 import os
 import re
-import subprocess
+from subprocess import *
 
 from utils import *
 
@@ -71,4 +71,10 @@ def run_script(script, jar_path, jar_type):
     Function to run a given script
     '''
 
-    subprocess.call(['java', '-Dhazelcast.logging.type=none', '-jar', './Pleiades', '-u', 'frace', '-i', script, '-j', jar_path, '-t', jar_type])
+    process = Popen(['python', './NewPleiades/upload.py', '-u', 'frace', '-i', script, '-j', jar_path, '-t', jar_type], stdout=PIPE)
+
+    while process.poll() == None:
+        s = process.stdout.read(256)
+        print s,
+
+    print process.returncode

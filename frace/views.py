@@ -20,7 +20,7 @@ class FraceForm(forms.Form):
     custom_jar_file = forms.FileField(required=False)
     custom_jar_file.widget.attrs['disabled'] = True
     min_solutions = forms.ChoiceField(label='Minimum solutions',
-        choices=[(2, 2), (5, 5), (10, 10), (15, 15)]
+        choices=[(2, 2), (5, 5), (10, 10), (15, 15), (20,20)]
     )
     min_problems = forms.ChoiceField(label='Minimum problems',
         choices=[(5, 5), (10, 10), (15, 15), (90, 90)]
@@ -89,8 +89,6 @@ def new_job(request):
 
             if os.path.exists(pleiades_results_path):
                 shutil.rmtree(pleiades_results_path)
-
-            os.makedirs(pleiades_results_path)
     
             algorithm_path = os.path.join(upload_path, job_name + '_frace-alg.scala')
             problems_path = os.path.join(upload_path, job_name + '_frace-prob.scala')

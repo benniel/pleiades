@@ -55,11 +55,11 @@ def def_name(s):
     Retrieves the scala def name for a given scala def
     '''
 
-    return re.search(r'def(.*)=', s).group(1).strip()
+    return re.search(r'def(.*?)=', s).group(1).strip()
 
 
 def id_name(s):
-    return re.search(r'id="(.*)" class', s).group(1).strip()
+    return re.search(r'id="(.*?)" class', s).group(1).strip()
 
 
 def get_algorithm_string(algorithm_path):
